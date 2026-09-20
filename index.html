@@ -861,7 +861,30 @@ td{
 </div>
 
 <script>
+<!-- FIREBASE CLOUD MESSAGING -->
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-messaging-compat.js"></script>
 
+<script>
+const firebaseConfig = {
+    apiKey: "AIzaSyBmJSb0tYS_9FYQ-GoJdvJfuuFRs6A98rY",
+    authDomain: "controle-diarias-64b89.firebaseapp.com",
+    projectId: "controle-diarias-64b89",
+    storageBucket: "controle-diarias-64b89.firebasestorage.app",
+    messagingSenderId: "258117203821",
+    appId: "1:258117203821:web:1a03d403d379c20a4a8c64",
+    measurementId: "G-M4NTTXWJ32"
+};
+
+firebase.initializeApp(firebaseConfig);
+
+const messaging = firebase.messaging();
+
+const VAPID_KEY =
+    "BHY4b8PPoODZ5jbfXMCNNHY4jqJn_n_-yAVF1NftrruxMqyG6K-732utyK4bmQvYhmT_2ePmtVc-TrE6S02dQ_A";
+
+console.log("Firebase Cloud Messaging preparado.");
+</script>
 /* =========================================================
    BANCO LOCAL
 ========================================================= */
@@ -1635,18 +1658,74 @@ async function ativarNotificacoes(){
 
     if(!("Notification" in window)){
 
-        alert(
-            "Seu navegador não suporta notificações."
-        );
+        alert("Seu navegador não suporta notificações.");
 
         return;
-
     }
 
-    const permissao =
-        await Notification.requestPermission();
+    try{
 
-    if(permissao === "granted"){
+        const permissao =
+            await Notification.requestPermission();
+
+        if(permissao !== "granted"){
+
+            alert(
+                "Você precisa permitir as notificações no navegador."
+            );
+
+            return;
+        }
+
+        /*
+         * Registra o Service Worker específico
+         * do Firebase Messaging.
+         */
+
+        const registro =
+            await navigator.serviceWorker.register(
+                "firebase-messaging-sw.js"
+            );
+
+        console.log(
+            "Firebase Service Worker registrado:",
+            registro
+        );
+
+        /*
+         * Obtém o token deste dispositivo.
+         */
+
+        const token =
+            await messaging.getToken({
+
+                vapidKey: VAPID_KEY,
+
+                serviceWorkerRegistration: registro
+
+            });
+
+        if(!token){
+
+            alert(
+                "Não foi possível obter o token de notificações."
+            );
+
+            return;
+        }
+
+        console.log("TOKEN FCM:", token);
+
+        /*
+         * Guarda o token localmente.
+         * Depois vamos usar esse token para
+         * enviar os lembretes automáticos.
+         */
+
+        localStorage.setItem(
+            "firebaseMessagingToken",
+            token
+        );
 
         localStorage.setItem(
             CHAVE_NOTIFICACOES,
@@ -1655,25 +1734,41 @@ async function ativarNotificacoes(){
 
         atualizarStatusNotificacao();
 
+        /*
+         * Teste imediato.
+         */
+
         new Notification(
             "Controle de Diárias",
             {
-                body:"🔔 Lembretes ativados com sucesso!"
+                body:
+                    "🔔 Notificações configuradas com sucesso!",
+                icon:"icone-192.png",
+                badge:"icone-192.png"
             }
         );
 
         agendarLembreteLocal();
 
-    }else{
+        console.log(
+            "Notificações Firebase ativadas."
+        );
+
+    }catch(erro){
+
+        console.error(
+            "Erro ao ativar Firebase Messaging:",
+            erro
+        );
 
         alert(
-            "Você precisa permitir as notificações no navegador."
+            "Erro ao ativar as notificações. " +
+            "Abra o console do navegador (F12) para ver o erro."
         );
 
     }
 
 }
-
 
 function atualizarStatusNotificacao(){
 
